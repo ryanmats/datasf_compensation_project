@@ -1,0 +1,7 @@
+version: 2
+sources:
+  - name: src_employee_compensation_raw
+    database: EMPLOYEE_COMPENSATION
+    schema: PUBLIC
+    tables:
+      - name: EMPLOYEE_COMPENSATION

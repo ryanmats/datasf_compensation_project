@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: reporting_compensation_by_tenure
+    description: "The Gold layer for City leadership, providing audited total compensation and tenure brackets."
+    
+    # Model-level tests
+    tests:
+      # Verify that total_compensation_calculated is equal to the sum of salaries, overtime, and other_salaries.
+      - dbt_utils.expression_is_true:
+          expression: "total_compensation_calculated = (salaries + overtime + other_salaries)"
+      # Verify that total_compensation_calculated is equal to the total_salary field from the original dataset.
+      - dbt_utils.expression_is_true:
+          expression: "total_compensation_calculated = total_salary"
+      # This ensures that for every specific year, year_type, and job, an employee only appears once.
+      - unique:
+          column_name: "(employee_id || '-' || year || '-' || year_type || job)"
+
+
+    columns:
+
+      # Make sure employee_id is not null.
+      - name: employee_id
+        description: "Unique identifier for each employee, determined by unique employee_name, department_code, job_family_code combinations."
+        tests:
+          - not_null
+
+      # Make sure total_compensation_calculated is not null.
+      # If total_compensation_calculated is negative, provide a warning with the number of instances of
+      # negative values. It could be legitimate (e.g. the city may have pay adjustments/correcting errors)
+      # but those results should be investigated further.
+      - name: total_compensation_calculated
+        description: "Total compensation calculated by our SQL model as salaries + overtime + other_salaries."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              severity: warn 
+
+      # Make sure tenure_bracket is not null and is one of the intended values.
+      - name: tenure_bracket
+        description: "Employee tenure for a given year defined as number of fiscal years of experience, bracketed into 5 buckets."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['< 1 Year', '1 - 2 Years', '3 - 5 Years', '6 - 9 Years', '10+ Years']
+
+
+      # Descriptions for reporting table fields that do not have tests.
+      - name: employee_name
+        description: "Name of the employee compensated by the City. 2013-2016 data will have a numerical identifier instead of a name due to a data system migration."
+      - name: department
+        description: "The City department at which the employee was employed."
+      - name: job_family
+        description: "Job Family combines similar Jobs into meaningful groups."
+      - name: job
+        description: "Jobs are defined by the Human Resources classification unit. Examples include gardeners, police officers, and accountants."
+      - name: year
+        description: "An accounting period of 12 months. The City and County of San Francisco operates on a fiscal year that begins on July 1 and ends on June 30 the following year. The Fiscal Year ending June 30, 2012 is represented as FY2011-2012."
+      - name: year_type
+        description: "Fiscal (July through June) or Calendar (January through December)."
+      - name: salaries
+        description: "Normal salaries paid to the employee."
+      - name: overtime
+        description: "Amounts paid to the employee working in excess of 40 hours per week."
+      - name: other_salaries
+        description: "Various irregular payments made to City employee including premium pay, incentive pay, or other one-time payments"
+      - name: total_salary
+        description: "The sum of all salaries paid to City employee."
+      - name: years_experience
+        description: "Number of years of experience for an employee in a given working year, calculated by how many fiscal years they have worked before."
